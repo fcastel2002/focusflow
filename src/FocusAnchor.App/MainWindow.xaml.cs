@@ -19,7 +19,20 @@ public partial class MainWindow : Window
 
         _controller = App.Current.SessionController;
         _controller.StateChanged += Controller_StateChanged;
+        App.Current.ThemeService.ThemeChanged += ThemeService_ThemeChanged;
         UpdateUi();
+    }
+
+    private void ToggleTheme_Click(object sender, RoutedEventArgs e)
+    {
+        App.Current.ThemeService.ToggleTheme();
+    }
+
+    private void ThemeService_ThemeChanged(object? sender, EventArgs e)
+    {
+        ThemeButton.Content = App.Current.ThemeService.IsDarkTheme
+            ? "Tema claro"
+            : "Tema oscuro";
     }
 
     private void DurationOption_Checked(object sender, RoutedEventArgs e)
@@ -128,6 +141,7 @@ public partial class MainWindow : Window
 
     private void UpdateUi()
     {
+        ThemeService_ThemeChanged(this, EventArgs.Empty);
         var session = _controller.CurrentSession;
 
         HistoryPanel.Visibility = _showingHistory ? Visibility.Visible : Visibility.Collapsed;

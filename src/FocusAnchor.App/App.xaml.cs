@@ -20,10 +20,19 @@ public partial class App : Application
         }
 
         SessionRepository = new SqliteSessionHistoryRepository(Path.Combine(applicationDataPath, "focus-anchor.db"));
+        ThemeService = new ThemeService(SessionRepository);
         SessionController = new FocusSessionController(SessionRepository);
     }
 
     public ISessionHistoryRepository SessionRepository { get; }
 
     public FocusSessionController SessionController { get; }
+
+    public ThemeService ThemeService { get; }
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        ThemeService.ApplySavedTheme();
+        base.OnStartup(e);
+    }
 }

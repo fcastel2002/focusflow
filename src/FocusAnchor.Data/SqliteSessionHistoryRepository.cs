@@ -135,6 +135,35 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository
             reader.GetInt32(2));
     }
 
+    public string? GetPreference(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT value FROM app_preferences WHERE key = $key;";
+        command.Parameters.AddWithValue("$key", key);
+        return command.ExecuteScalar() as string;
+    }
+
+    public void SetPreference(string key, string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(value);
+
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO app_preferences (key, value)
+            VALUES ($key, $value)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            """;
+        command.Parameters.AddWithValue("$key", key);
+        command.Parameters.AddWithValue("$value", value);
+        command.ExecuteNonQuery();
+    }
+
     private void EnsureSchema()
     {
         using var connection = CreateOpenConnection();
@@ -150,6 +179,11 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository
                 focused_duration_seconds INTEGER NOT NULL,
                 distraction_count INTEGER NOT NULL,
                 reflection TEXT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS app_preferences (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
             );
             """;
         command.ExecuteNonQuery();

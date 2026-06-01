@@ -70,6 +70,18 @@ public sealed class SqliteSessionHistoryRepositoryTests
         Assert.AreEqual(3, summary.TotalDistractionCount);
     }
 
+    [TestMethod]
+    public void SetPreference_UpsertsValue()
+    {
+        using var database = new TemporaryDatabase();
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+
+        repository.SetPreference("theme", "light");
+        repository.SetPreference("theme", "dark");
+
+        Assert.AreEqual("dark", repository.GetPreference("theme"));
+    }
+
     private static void SaveReview(
         SqliteSessionHistoryRepository repository,
         string intent,

@@ -9,4 +9,8 @@ public interface ISessionHistoryRepository
     IReadOnlyList<SessionHistoryEntry> GetRecent(int limit = 50);
 
     AttentionSummary GetSummary();
+
+    string? GetPreference(string key);
+
+    void SetPreference(string key, string value);
 }
