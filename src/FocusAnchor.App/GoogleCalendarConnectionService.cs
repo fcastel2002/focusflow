@@ -87,6 +87,11 @@ public sealed class GoogleCalendarConnectionService
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public Task<string> GetAccessTokenAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAccessTokenCoreAsync(cancellationToken);
+    }
+
     public void Disconnect()
     {
         _token = null;
@@ -95,7 +100,7 @@ public sealed class GoogleCalendarConnectionService
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
+    private async Task<string> GetAccessTokenCoreAsync(CancellationToken cancellationToken)
     {
         if (_token is not null && _token.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
         {

@@ -237,7 +237,7 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
             """
             SELECT id, calendar_id, intent_description, starts_at, duration_seconds
             FROM focus_plans
-            WHERE substr(starts_at, 1, 10) = $date
+            WHERE substr(starts_at, 1, 10) = $date AND is_deleted = 0
             ORDER BY starts_at;
             """;
         command.Parameters.AddWithValue("$date", FormatDate(date));
@@ -269,8 +269,8 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
         {
             command.CommandText =
                 """
-                INSERT INTO focus_plans (calendar_id, intent_description, starts_at, duration_seconds)
-                VALUES ($calendarId, $intentDescription, $startsAt, $durationSeconds);
+                INSERT INTO focus_plans (calendar_id, intent_description, starts_at, duration_seconds, local_updated_at)
+                VALUES ($calendarId, $intentDescription, $startsAt, $durationSeconds, $localUpdatedAt);
                 SELECT last_insert_rowid();
                 """;
         }
@@ -282,7 +282,9 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
                 SET calendar_id = $calendarId,
                     intent_description = $intentDescription,
                     starts_at = $startsAt,
-                    duration_seconds = $durationSeconds
+                    duration_seconds = $durationSeconds,
+                    local_updated_at = $localUpdatedAt,
+                    is_deleted = 0
                 WHERE id = $id;
                 SELECT $id;
                 """;
@@ -293,6 +295,7 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
         command.Parameters.AddWithValue("$intentDescription", plan.IntentDescription);
         command.Parameters.AddWithValue("$startsAt", FormatDateTime(plan.StartsAt));
         command.Parameters.AddWithValue("$durationSeconds", ToWholeSeconds(plan.Duration));
+        command.Parameters.AddWithValue("$localUpdatedAt", FormatDateTime(DateTimeOffset.UtcNow));
         var id = (long)(command.ExecuteScalar() ?? throw new InvalidOperationException("The plan could not be saved."));
         return new FocusPlan(id, plan.CalendarId, plan.IntentDescription, plan.StartsAt, plan.Duration);
     }
@@ -301,8 +304,17 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
     {
         using var connection = CreateOpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM focus_plans WHERE id = $id;";
+        command.CommandText =
+            """
+            UPDATE focus_plans
+            SET is_deleted = 1, local_updated_at = $localUpdatedAt
+            WHERE id = $id AND google_event_id IS NOT NULL;
+
+            DELETE FROM focus_plans
+            WHERE id = $id AND google_event_id IS NULL;
+            """;
         command.Parameters.AddWithValue("$id", planId);
+        command.Parameters.AddWithValue("$localUpdatedAt", FormatDateTime(DateTimeOffset.UtcNow));
         command.ExecuteNonQuery();
     }
 
@@ -356,7 +368,7 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
         command.CommandText =
             """
             SELECT
-                (SELECT COUNT(*) FROM focus_plans WHERE substr(starts_at, 1, 10) = $date),
+                (SELECT COUNT(*) FROM focus_plans WHERE substr(starts_at, 1, 10) = $date AND is_deleted = 0),
                 (SELECT COUNT(*) FROM focus_sessions WHERE substr(ended_at, 1, 10) = $date),
                 (SELECT COALESCE(SUM(focused_duration_seconds), 0) FROM focus_sessions WHERE substr(ended_at, 1, 10) = $date),
                 (SELECT COALESCE(SUM(distraction_count), 0) FROM focus_sessions WHERE substr(ended_at, 1, 10) = $date);
@@ -421,6 +433,99 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
         command.ExecuteNonQuery();
     }
 
+    public IReadOnlyList<FocusPlanSyncRecord> GetPlansForSync(long calendarId)
+    {
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                id,
+                calendar_id,
+                intent_description,
+                starts_at,
+                duration_seconds,
+                google_event_id,
+                google_etag,
+                local_updated_at,
+                google_updated_at,
+                last_synced_at,
+                is_deleted
+            FROM focus_plans
+            WHERE calendar_id = $calendarId;
+            """;
+        command.Parameters.AddWithValue("$calendarId", calendarId);
+
+        using var reader = command.ExecuteReader();
+        var records = new List<FocusPlanSyncRecord>();
+
+        while (reader.Read())
+        {
+            records.Add(new FocusPlanSyncRecord(
+                new FocusPlan(
+                    reader.GetInt64(0),
+                    reader.GetInt64(1),
+                    reader.GetString(2),
+                    ParseDateTime(reader.GetString(3)),
+                    TimeSpan.FromSeconds(reader.GetInt64(4))),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                ParseDateTime(reader.GetString(7)),
+                reader.IsDBNull(8) ? null : ParseDateTime(reader.GetString(8)),
+                reader.IsDBNull(9) ? null : ParseDateTime(reader.GetString(9)),
+                reader.GetBoolean(10)));
+        }
+
+        return records;
+    }
+
+    public void MarkPlanSynced(long planId, Google.GoogleCalendarEvent googleEvent, DateTimeOffset syncedAt)
+    {
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            UPDATE focus_plans
+            SET google_event_id = $googleEventId,
+                google_etag = $googleETag,
+                google_updated_at = $googleUpdatedAt,
+                last_synced_at = $lastSyncedAt,
+                is_deleted = 0
+            WHERE id = $planId;
+            """;
+        command.Parameters.AddWithValue("$planId", planId);
+        command.Parameters.AddWithValue("$googleEventId", googleEvent.Id);
+        command.Parameters.AddWithValue("$googleETag", googleEvent.ETag);
+        command.Parameters.AddWithValue("$googleUpdatedAt", FormatDateTime(googleEvent.UpdatedAt));
+        command.Parameters.AddWithValue("$lastSyncedAt", FormatDateTime(syncedAt));
+        command.ExecuteNonQuery();
+    }
+
+    public FocusPlan ImportGooglePlan(long calendarId, Google.GoogleCalendarEvent googleEvent)
+    {
+        var existing = GetPlansForSync(calendarId).FirstOrDefault(record =>
+            record.GoogleEventId == googleEvent.Id
+            || record.Plan.Id.ToString(CultureInfo.InvariantCulture) == googleEvent.FocusAnchorPlanId);
+        var plan = new FocusPlan(
+            existing?.Plan.Id ?? 0,
+            calendarId,
+            googleEvent.Summary,
+            googleEvent.StartsAt,
+            googleEvent.EndsAt - googleEvent.StartsAt);
+        var saved = SavePlan(plan);
+        MarkPlanSynced(saved.Id, googleEvent, DateTimeOffset.UtcNow);
+        return saved;
+    }
+
+    public void DeletePlanPermanently(long planId)
+    {
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM focus_plans WHERE id = $id;";
+        command.Parameters.AddWithValue("$id", planId);
+        command.ExecuteNonQuery();
+    }
+
     private void EnsureSchema()
     {
         using var connection = CreateOpenConnection();
@@ -482,7 +587,13 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
                 calendar_id INTEGER NOT NULL REFERENCES focus_calendars(id) ON DELETE CASCADE,
                 intent_description TEXT NOT NULL,
                 starts_at TEXT NOT NULL,
-                duration_seconds INTEGER NOT NULL
+                duration_seconds INTEGER NOT NULL,
+                google_event_id TEXT NULL,
+                google_etag TEXT NULL,
+                google_updated_at TEXT NULL,
+                last_synced_at TEXT NULL,
+                local_updated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.0000000+00:00',
+                is_deleted INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS calendar_google_links (
@@ -498,6 +609,13 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
             PRAGMA user_version = 2;
             """;
         command.ExecuteNonQuery();
+
+        EnsureColumn(connection, "focus_plans", "google_event_id", "TEXT NULL");
+        EnsureColumn(connection, "focus_plans", "google_etag", "TEXT NULL");
+        EnsureColumn(connection, "focus_plans", "google_updated_at", "TEXT NULL");
+        EnsureColumn(connection, "focus_plans", "last_synced_at", "TEXT NULL");
+        EnsureColumn(connection, "focus_plans", "local_updated_at", "TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.0000000+00:00'");
+        EnsureColumn(connection, "focus_plans", "is_deleted", "INTEGER NOT NULL DEFAULT 0");
     }
 
     private static bool ColumnExists(SqliteConnection connection, string tableName, string columnName)
@@ -515,6 +633,18 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
         }
 
         return false;
+    }
+
+    private static void EnsureColumn(SqliteConnection connection, string tableName, string columnName, string definition)
+    {
+        if (ColumnExists(connection, tableName, columnName))
+        {
+            return;
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"ALTER TABLE {tableName} ADD COLUMN {columnName} {definition};";
+        command.ExecuteNonQuery();
     }
 
     private SqliteConnection CreateOpenConnection()

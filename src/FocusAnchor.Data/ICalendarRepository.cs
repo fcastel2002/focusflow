@@ -27,4 +27,12 @@ public interface ICalendarRepository
     void SaveGoogleCalendarLink(GoogleCalendarLink link);
 
     void DeleteGoogleCalendarLink(long calendarId);
+
+    IReadOnlyList<FocusPlanSyncRecord> GetPlansForSync(long calendarId);
+
+    void MarkPlanSynced(long planId, Google.GoogleCalendarEvent googleEvent, DateTimeOffset syncedAt);
+
+    FocusPlan ImportGooglePlan(long calendarId, Google.GoogleCalendarEvent googleEvent);
+
+    void DeletePlanPermanently(long planId);
 }

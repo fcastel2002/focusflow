@@ -574,11 +574,22 @@
                                     Content="Usar calendario"
                                     Style="{StaticResource SecondaryButtonStyle}" />
                             <Button x:Name="UnlinkGoogleCalendarButton"
+                                    Margin="0,0,7,0"
                                     Padding="10,6"
                                     Click="UnlinkGoogleCalendar_Click"
                                     Content="Desvincular"
                                     Style="{StaticResource DangerButtonStyle}" />
+                            <Button x:Name="SyncGoogleCalendarButton"
+                                    Padding="10,6"
+                                    Click="SyncGoogleCalendar_Click"
+                                    Content="Sincronizar ahora"
+                                    Style="{StaticResource PrimaryButtonStyle}" />
                         </StackPanel>
+                        <TextBlock x:Name="GoogleSyncStatusText"
+                                   Margin="0,7,0,0"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
                     <TextBlock x:Name="CalendarErrorText"
                                Grid.Row="3"
@@ -681,6 +692,45 @@
                                         Click="DeletePlan_Click"
                                         Content="Eliminar"
                                         Style="{StaticResource DangerButtonStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Margin="0,16,0,0" Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Text="Contexto de Google Calendar" />
+                            <TextBlock Margin="0,5,0,0"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="Los eventos externos se muestran como contexto de solo lectura." />
+                            <ListBox x:Name="GoogleContextList"
+                                     Height="78"
+                                     Margin="0,8,0,0"
+                                     Background="Transparent"
+                                     BorderThickness="0" />
+                            <TextBlock Margin="0,12,0,0"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Text="Conflictos pendientes" />
+                            <ListBox x:Name="GoogleConflictList"
+                                     Height="62"
+                                     Margin="0,7,0,0"
+                                     Background="Transparent"
+                                     BorderThickness="0" />
+                            <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+                                <Button Margin="0,0,7,0"
+                                        Padding="10,6"
+                                        Click="ResolveConflictWithLocal_Click"
+                                        Content="Usar versión local"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
+                                <Button Padding="10,6"
+                                        Click="ResolveConflictWithGoogle_Click"
+                                        Content="Usar versión Google"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>

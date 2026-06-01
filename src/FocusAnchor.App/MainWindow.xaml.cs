@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private bool _showingCalendar;
     private long _editingCalendarId;
     private long _editingPlanId;
+    private GoogleSyncResult? _lastSyncResult;
 
     public MainWindow()
     {
@@ -65,6 +66,33 @@ public partial class MainWindow : Window
 
         App.Current.CalendarRepository.DeleteGoogleCalendarLink(calendar.Id);
         UpdateGoogleConnectionUi();
+    }
+
+    private async void SyncGoogleCalendar_Click(object sender, RoutedEventArgs e)
+    {
+        await TryGoogleActionAsync(async () =>
+        {
+            if (!TryGetSelectedCalendar(out var calendar))
+            {
+                return;
+            }
+
+            var accessToken = await App.Current.GoogleCalendarConnectionService.GetAccessTokenAsync();
+            _lastSyncResult = await App.Current.GoogleCalendarSyncService.SyncAsync(accessToken, calendar.Id);
+            GoogleSyncStatusText.Text =
+                $"Sincronización completa: {_lastSyncResult.ExportedCount} exportados, {_lastSyncResult.ImportedCount} importados.";
+            UpdateCalendar();
+        });
+    }
+
+    private async void ResolveConflictWithLocal_Click(object sender, RoutedEventArgs e)
+    {
+        await ResolveSelectedConflictAsync(GoogleSyncConflictResolution.UseLocal);
+    }
+
+    private async void ResolveConflictWithGoogle_Click(object sender, RoutedEventArgs e)
+    {
+        await ResolveSelectedConflictAsync(GoogleSyncConflictResolution.UseGoogle);
     }
 
     private void ToggleTheme_Click(object sender, RoutedEventArgs e)
@@ -433,6 +461,14 @@ public partial class MainWindow : Window
             .Where(plan => plan.CalendarId == calendar.Id)
             .Select(plan => new PlanListItem(plan, $"{plan.StartsAt.ToLocalTime():HH:mm} · {plan.IntentDescription} · {(int)plan.Duration.TotalMinutes} min"))
             .ToArray();
+
+        GoogleContextList.ItemsSource = (_lastSyncResult?.ExternalEvents ?? [])
+            .Where(item => DateOnly.FromDateTime(item.StartsAt.LocalDateTime) == date)
+            .Select(item => $"{item.StartsAt.ToLocalTime():HH:mm} · {item.Summary}")
+            .ToArray();
+        GoogleConflictList.ItemsSource = (_lastSyncResult?.Conflicts ?? [])
+            .Select(conflict => new ConflictListItem(conflict, conflict.LocalPlan.IntentDescription))
+            .ToArray();
     }
 
     private bool TryGetSelectedCalendar(out FocusCalendar calendar)
@@ -519,6 +555,31 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ResolveSelectedConflictAsync(GoogleSyncConflictResolution resolution)
+    {
+        if (GoogleConflictList.SelectedItem is not ConflictListItem item)
+        {
+            return;
+        }
+
+        await TryGoogleActionAsync(async () =>
+        {
+            if (!TryGetSelectedCalendar(out var calendar))
+            {
+                return;
+            }
+
+            var accessToken = await App.Current.GoogleCalendarConnectionService.GetAccessTokenAsync();
+            await App.Current.GoogleCalendarSyncService.ResolveConflictAsync(
+                accessToken,
+                calendar.Id,
+                item.Conflict,
+                resolution);
+            _lastSyncResult = await App.Current.GoogleCalendarSyncService.SyncAsync(accessToken, calendar.Id);
+            UpdateCalendar();
+        });
+    }
+
     private bool TryGetSelectedCalendarSilently(out FocusCalendar calendar)
     {
         calendar = FocusCalendarCombo.SelectedItem as FocusCalendar ?? null!;
@@ -566,4 +627,12 @@ public partial class MainWindow : Window
         string EndedAt);
 
     private sealed record PlanListItem(FocusPlan Plan, string DisplayText);
+
+    private sealed record ConflictListItem(GoogleSyncConflict Conflict, string DisplayText)
+    {
+        public override string ToString()
+        {
+            return DisplayText;
+        }
+    }
 }

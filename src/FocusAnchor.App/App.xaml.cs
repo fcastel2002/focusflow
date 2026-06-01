@@ -26,10 +26,14 @@ public partial class App : Application
         ThemeService = new ThemeService(SessionRepository);
         RainAudioService = new RainAudioService(SessionRepository);
         SessionController = new FocusSessionController(SessionRepository);
+        var googleHttpClient = new HttpClient();
         GoogleCalendarConnectionService = new GoogleCalendarConnectionService(
-            new HttpClient(),
+            googleHttpClient,
             new WindowsGoogleCredentialStore(),
             Environment.GetEnvironmentVariable("FOCUSANCHOR_GOOGLE_CLIENT_ID"));
+        GoogleCalendarSyncService = new GoogleCalendarSyncService(
+            CalendarRepository,
+            new GoogleCalendarApiClient(googleHttpClient));
     }
 
     public ISessionHistoryRepository SessionRepository { get; }
@@ -43,6 +47,8 @@ public partial class App : Application
     public RainAudioService RainAudioService { get; }
 
     public GoogleCalendarConnectionService GoogleCalendarConnectionService { get; }
+
+    public GoogleCalendarSyncService GoogleCalendarSyncService { get; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
