@@ -1,0 +1,312 @@
+<Window x:Class="FocusAnchor.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="FocusAnchor"
+        Width="1120"
+        Height="760"
+        MinWidth="900"
+        MinHeight="650"
+        Background="{StaticResource PageBackgroundBrush}"
+        WindowStartupLocation="CenterScreen"
+        Closing="Window_Closing">
+    <Grid Margin="36,28,36,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock FontSize="25"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           Text="FocusAnchor" />
+                <TextBlock Margin="0,4,0,0"
+                           FontSize="14"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Text="Un espacio tranquilo para elegir y proteger tu atención." />
+            </StackPanel>
+            <Border Grid.Column="1"
+                    Padding="12,7"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Background="#E5EFEA"
+                    CornerRadius="14">
+                <TextBlock x:Name="HeaderStatusText"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource PrimaryBrush}"
+                           Text="Listo para enfocar" />
+            </Border>
+        </Grid>
+
+        <Grid x:Name="StartPanel" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*" />
+                <ColumnDefinition Width="0.95*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Margin="8,56,48,0">
+                <TextBlock FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource AccentBrush}"
+                           Text="TU PRÓXIMO BLOQUE" />
+                <TextBlock Margin="0,16,0,0"
+                           FontSize="46"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           TextWrapping="Wrap"
+                           Text="Elegí una intención.&#x0a;El resto puede esperar." />
+                <TextBlock Margin="0,22,0,0"
+                           MaxWidth="500"
+                           HorizontalAlignment="Left"
+                           FontSize="17"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           LineHeight="26"
+                           TextWrapping="Wrap"
+                           Text="Una sesión de foco no es una lista de tareas. Es una decisión simple sobre dónde querés poner tu atención ahora." />
+            </StackPanel>
+            <Border Grid.Column="1"
+                    Margin="12,14,8,14"
+                    Style="{StaticResource CardStyle}">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="24"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Text="Empezar una sesión" />
+                    <TextBlock Margin="0,8,0,0"
+                               FontSize="14"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Text="¿Qué merece tu atención ahora?" />
+                    <TextBox x:Name="IntentTextBox"
+                             Margin="0,22,0,0"
+                             MinHeight="48"
+                             Style="{StaticResource InputStyle}"
+                             TextWrapping="Wrap" />
+                    <TextBlock Margin="0,24,0,0"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Text="DURACIÓN" />
+                    <StackPanel Margin="0,11,0,0" Orientation="Horizontal">
+                        <RadioButton Content="25 min"
+                                     GroupName="Duration"
+                                     IsChecked="True"
+                                     Style="{StaticResource DurationOptionStyle}"
+                                     Tag="25"
+                                     Checked="DurationOption_Checked" />
+                        <RadioButton Content="45 min"
+                                     GroupName="Duration"
+                                     Style="{StaticResource DurationOptionStyle}"
+                                     Tag="45"
+                                     Checked="DurationOption_Checked" />
+                        <RadioButton Content="60 min"
+                                     GroupName="Duration"
+                                     Style="{StaticResource DurationOptionStyle}"
+                                     Tag="60"
+                                     Checked="DurationOption_Checked" />
+                    </StackPanel>
+                    <TextBlock x:Name="StartErrorText"
+                               Margin="0,18,0,0"
+                               FontSize="13"
+                               Foreground="{StaticResource DangerBrush}"
+                               TextWrapping="Wrap" />
+                    <Button Margin="0,24,0,0"
+                            HorizontalAlignment="Stretch"
+                            Click="StartSession_Click"
+                            Content="Comenzar bloque de foco"
+                            Style="{StaticResource PrimaryButtonStyle}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="SessionPanel"
+              Grid.Row="1"
+              Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.18*" />
+                <ColumnDefinition Width="0.82*" />
+            </Grid.ColumnDefinitions>
+            <Border Margin="0,0,18,0" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   Text="INTENCIÓN ACTUAL" />
+                        <TextBlock x:Name="ActiveIntentText"
+                                   Margin="0,10,0,0"
+                                   FontSize="28"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="RemainingTimeText"
+                                   HorizontalAlignment="Center"
+                                   FontFamily="Consolas"
+                                   FontSize="82"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Text="25:00" />
+                        <TextBlock x:Name="SessionStatusText"
+                                   Margin="0,8,0,0"
+                                   HorizontalAlignment="Center"
+                                   FontSize="15"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Text="Sesión activa" />
+                        <ProgressBar x:Name="SessionProgressBar"
+                                     Height="8"
+                                     Margin="28,32,28,0"
+                                     Background="{StaticResource SurfaceMutedBrush}"
+                                     BorderThickness="0"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     Maximum="100" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2"
+                                HorizontalAlignment="Center"
+                                Orientation="Horizontal">
+                        <Button x:Name="PauseResumeButton"
+                                Margin="0,0,10,0"
+                                Click="PauseResume_Click"
+                                Content="Pausar"
+                                Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button Margin="0,0,10,0"
+                                Click="ShowFloating_Click"
+                                Content="Usar modo flotante"
+                                Style="{StaticResource PrimaryButtonStyle}" />
+                        <Button Click="EndSession_Click"
+                                Content="Finalizar"
+                                Style="{StaticResource DangerButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Text="Descargar una distracción" />
+                    <TextBlock Grid.Row="1"
+                               Margin="0,8,0,0"
+                               FontSize="14"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Text="Anotala sin cambiar de tarea. Va a quedar acá para cuando termine el bloque." />
+                    <Grid Grid.Row="2" Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="DistractionTextBox"
+                                 MinHeight="45"
+                                 KeyDown="DistractionTextBox_KeyDown"
+                                 Style="{StaticResource InputStyle}" />
+                        <Button x:Name="CaptureDistractionButton"
+                                Grid.Column="1"
+                                Margin="10,0,0,0"
+                                Click="CaptureDistraction_Click"
+                                Content="Anotar"
+                                Style="{StaticResource PrimaryButtonStyle}" />
+                    </Grid>
+                    <ListBox x:Name="DistractionList"
+                             Grid.Row="3"
+                             Margin="0,22,0,0"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             FontSize="14"
+                             Foreground="{StaticResource TextSecondaryBrush}" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ReviewPanel"
+              Grid.Row="1"
+              Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*" />
+                <ColumnDefinition Width="0.95*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Margin="8,36,48,0">
+                <TextBlock FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource AccentBrush}"
+                           Text="BLOQUE FINALIZADO" />
+                <TextBlock Margin="0,14,0,0"
+                           FontSize="42"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           TextWrapping="Wrap"
+                           Text="Tomate un momento para revisar cómo fue." />
+                <TextBlock x:Name="ReviewSummaryText"
+                           Margin="0,22,0,0"
+                           FontSize="16"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           LineHeight="25"
+                           TextWrapping="Wrap" />
+                <Button Margin="0,30,0,0"
+                        HorizontalAlignment="Left"
+                        Click="NewSession_Click"
+                        Content="Elegir un nuevo foco"
+                        Style="{StaticResource SecondaryButtonStyle}" />
+            </StackPanel>
+            <Border Grid.Column="1"
+                    Margin="12,14,8,14"
+                    Style="{StaticResource CardStyle}">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Text="Revisión breve" />
+                    <TextBlock Margin="0,8,0,0"
+                               FontSize="14"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Text="Opcional. Una nota simple para recordar qué pasó con tu atención." />
+                    <TextBox x:Name="ReviewTextBox"
+                             Height="150"
+                             Margin="0,22,0,0"
+                             AcceptsReturn="True"
+                             Style="{StaticResource InputStyle}"
+                             TextWrapping="Wrap"
+                             VerticalContentAlignment="Top"
+                             VerticalScrollBarVisibility="Auto" />
+                    <TextBlock x:Name="ReviewSavedText"
+                               Margin="0,16,0,0"
+                               FontSize="14"
+                               Foreground="{StaticResource PrimaryBrush}" />
+                    <Button x:Name="SaveReviewButton"
+                            Margin="0,22,0,0"
+                            Click="SaveReview_Click"
+                            Content="Guardar revisión"
+                            Style="{StaticResource PrimaryButtonStyle}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="2"
+                   Margin="0,20,0,0"
+                   HorizontalAlignment="Center"
+                   FontSize="12"
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   Text="FocusAnchor mantiene tu intención cerca, sin convertirla en una lista." />
+    </Grid>
+</Window>
