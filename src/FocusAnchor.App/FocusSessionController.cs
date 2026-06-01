@@ -1,14 +1,17 @@
 using System.Windows.Threading;
 using FocusAnchor.Core;
+using FocusAnchor.Data;
 
 namespace FocusAnchor.App;
 
 public sealed class FocusSessionController
 {
     private readonly DispatcherTimer _timer;
+    private readonly ISessionHistoryRepository _repository;
 
-    public FocusSessionController()
+    public FocusSessionController(ISessionHistoryRepository repository)
     {
+        _repository = repository;
         _timer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(250)
@@ -92,8 +95,24 @@ public sealed class FocusSessionController
 
     public void CreateReview(string? reflection)
     {
-        CurrentSession?.CreateReview(reflection, DateTimeOffset.Now);
+        if (CurrentSession is null)
+        {
+            return;
+        }
+
+        var review = CurrentSession.CreateReview(reflection, DateTimeOffset.Now);
+        _repository.Save(review);
         RaiseStateChanged();
+    }
+
+    public IReadOnlyList<SessionHistoryEntry> GetRecentHistory()
+    {
+        return _repository.GetRecent();
+    }
+
+    public AttentionSummary GetAttentionSummary()
+    {
+        return _repository.GetSummary();
     }
 
     public void ResetSession()

@@ -11,6 +11,7 @@ public partial class MainWindow : Window
     private readonly FocusSessionController _controller;
     private FloatingTimerWindow? _floatingWindow;
     private int _selectedDurationMinutes = 25;
+    private bool _showingHistory;
 
     public MainWindow()
     {
@@ -28,6 +29,28 @@ public partial class MainWindow : Window
         {
             _selectedDurationMinutes = durationMinutes;
         }
+    }
+
+    private void HubSection_Checked(object sender, RoutedEventArgs e)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        if (sender is not RadioButton { Tag: string section })
+        {
+            return;
+        }
+
+        _showingHistory = section is "History";
+
+        if (_showingHistory)
+        {
+            UpdateHistory();
+        }
+
+        UpdateUi();
     }
 
     private void StartSession_Click(object sender, RoutedEventArgs e)
@@ -107,11 +130,12 @@ public partial class MainWindow : Window
     {
         var session = _controller.CurrentSession;
 
-        StartPanel.Visibility = session is null ? Visibility.Visible : Visibility.Collapsed;
-        SessionPanel.Visibility = session is { Status: FocusSessionStatus.Active or FocusSessionStatus.Paused }
+        HistoryPanel.Visibility = _showingHistory ? Visibility.Visible : Visibility.Collapsed;
+        StartPanel.Visibility = !_showingHistory && session is null ? Visibility.Visible : Visibility.Collapsed;
+        SessionPanel.Visibility = !_showingHistory && session is { Status: FocusSessionStatus.Active or FocusSessionStatus.Paused }
             ? Visibility.Visible
             : Visibility.Collapsed;
-        ReviewPanel.Visibility = session is { Status: FocusSessionStatus.Completed }
+        ReviewPanel.Visibility = !_showingHistory && session is { Status: FocusSessionStatus.Completed }
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -161,6 +185,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private void UpdateHistory()
+    {
+        var summary = _controller.GetAttentionSummary();
+        HistorySessionCountText.Text = summary.SessionCount.ToString();
+        HistoryFocusedTimeText.Text = FormatFocusedDuration(summary.TotalFocusedDuration);
+        HistoryDistractionCountText.Text = summary.TotalDistractionCount.ToString();
+
+        HistoryList.ItemsSource = _controller.GetRecentHistory()
+            .Select(entry => new HistoryListItem(
+                entry.IntentDescription,
+                $"{FormatFocusedDuration(entry.FocusedDuration)} de foco · {entry.DistractionCount} distracciones",
+                entry.Reflection ?? string.Empty,
+                entry.EndedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")))
+            .ToArray();
+    }
+
+    private static string FormatFocusedDuration(TimeSpan duration)
+    {
+        var totalMinutes = Math.Max(0, (int)Math.Round(duration.TotalMinutes));
+        return $"{totalMinutes} min";
+    }
+
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         if (_controller.HasOpenSession)
@@ -172,4 +218,10 @@ public partial class MainWindow : Window
 
         _floatingWindow?.Close();
     }
+
+    private sealed record HistoryListItem(
+        string IntentDescription,
+        string Details,
+        string Reflection,
+        string EndedAt);
 }
