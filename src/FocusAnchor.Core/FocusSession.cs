@@ -7,7 +7,7 @@ public sealed class FocusSession
     private DateTimeOffset? _activeSince;
     private DateTimeOffset? _latestEventAt;
 
-    public FocusSession(FocusIntent intent, TimeSpan duration)
+    public FocusSession(FocusIntent intent, TimeSpan duration, long? focusPlanId = null)
     {
         ArgumentNullException.ThrowIfNull(intent);
 
@@ -16,13 +16,21 @@ public sealed class FocusSession
             throw new ArgumentOutOfRangeException(nameof(duration), "A session duration must be positive.");
         }
 
+        if (focusPlanId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(focusPlanId));
+        }
+
         Intent = intent;
         Duration = duration;
+        FocusPlanId = focusPlanId;
     }
 
     public FocusIntent Intent { get; }
 
     public TimeSpan Duration { get; }
+
+    public long? FocusPlanId { get; }
 
     public FocusSessionStatus Status { get; private set; } = FocusSessionStatus.Ready;
 

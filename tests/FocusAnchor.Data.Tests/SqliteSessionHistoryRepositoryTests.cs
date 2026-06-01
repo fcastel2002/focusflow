@@ -1,4 +1,5 @@
 using FocusAnchor.Core;
+using Microsoft.Data.Sqlite;
 
 namespace FocusAnchor.Data.Tests;
 
@@ -80,6 +81,115 @@ public sealed class SqliteSessionHistoryRepositoryTests
         repository.SetPreference("theme", "dark");
 
         Assert.AreEqual("dark", repository.GetPreference("theme"));
+    }
+
+    [TestMethod]
+    public void Constructor_SeedsPersonalCalendar()
+    {
+        using var database = new TemporaryDatabase();
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+
+        var calendar = repository.GetCalendars().Single();
+
+        Assert.AreEqual("Personal", calendar.Name);
+    }
+
+    [TestMethod]
+    public void Constructor_MigratesExistingSessionDatabase()
+    {
+        using var database = new TemporaryDatabase();
+        using (var connection = new SqliteConnection($"Data Source={database.Path};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                CREATE TABLE focus_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    intent_description TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT NOT NULL,
+                    planned_duration_seconds INTEGER NOT NULL,
+                    focused_duration_seconds INTEGER NOT NULL,
+                    distraction_count INTEGER NOT NULL,
+                    reflection TEXT NULL
+                );
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+
+        Assert.AreEqual("Personal", repository.GetCalendars().Single().Name);
+    }
+
+    [TestMethod]
+    public void SavePlan_AndGetPlans_PreservePlan()
+    {
+        using var database = new TemporaryDatabase();
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+        var calendar = repository.GetCalendars().Single();
+        var startsAt = new DateTimeOffset(2026, 6, 2, 9, 30, 0, TimeSpan.Zero);
+
+        var stored = repository.SavePlan(new FocusPlan(0, calendar.Id, "Draft proposal", startsAt, TimeSpan.FromMinutes(45)));
+
+        Assert.AreEqual(stored, repository.GetPlans(new DateOnly(2026, 6, 2)).Single());
+    }
+
+    [TestMethod]
+    public void SaveCalendar_AndDeleteCalendar_CascadePlans()
+    {
+        using var database = new TemporaryDatabase();
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+        var calendar = repository.SaveCalendar(new FocusCalendar(0, "Studio", "#123ABC"));
+        repository.SavePlan(new FocusPlan(
+            0,
+            calendar.Id,
+            "Outline article",
+            new DateTimeOffset(2026, 6, 2, 9, 30, 0, TimeSpan.Zero),
+            TimeSpan.FromMinutes(25)));
+
+        var updated = repository.SaveCalendar(new FocusCalendar(calendar.Id, "Writing", "#654321"));
+        repository.DeleteCalendar(updated.Id);
+
+        Assert.IsFalse(repository.GetCalendars().Any(item => item.Id == updated.Id));
+        Assert.IsEmpty(repository.GetPlans(new DateOnly(2026, 6, 2)));
+    }
+
+    [TestMethod]
+    public void SetDailyGoal_ReplacesExistingGoal()
+    {
+        using var database = new TemporaryDatabase();
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+        var calendar = repository.GetCalendars().Single();
+        var date = new DateOnly(2026, 6, 2);
+
+        repository.SetDailyGoal(new DailyGoal(calendar.Id, date, "Write calmly"));
+        repository.SetDailyGoal(new DailyGoal(calendar.Id, date, "Protect attention"));
+
+        Assert.AreEqual("Protect attention", repository.GetDailyGoal(calendar.Id, date)?.Description);
+    }
+
+    [TestMethod]
+    public void GetDailySummary_DescribesPlansAndReviewedSessions()
+    {
+        using var database = new TemporaryDatabase();
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+        var calendar = repository.GetCalendars().Single();
+        var startedAt = new DateTimeOffset(2026, 6, 2, 9, 0, 0, TimeSpan.Zero);
+        var plan = repository.SavePlan(new FocusPlan(0, calendar.Id, "Draft proposal", startedAt, TimeSpan.FromMinutes(25)));
+        var session = new FocusSession(new FocusIntent(plan.IntentDescription), plan.Duration, plan.Id);
+        session.Start(startedAt);
+        session.AddDistraction(new DistractionEntry("Check inbox", startedAt.AddMinutes(2)));
+        session.End(startedAt.AddMinutes(25));
+        repository.Save(session.CreateReview(null, startedAt.AddMinutes(26)));
+
+        var summary = repository.GetDailySummary(new DateOnly(2026, 6, 2));
+
+        Assert.AreEqual(1, summary.PlannedBlockCount);
+        Assert.AreEqual(1, summary.ReviewedSessionCount);
+        Assert.AreEqual(TimeSpan.FromMinutes(25), summary.FocusedDuration);
+        Assert.AreEqual(1, summary.DistractionCount);
     }
 
     private static void SaveReview(

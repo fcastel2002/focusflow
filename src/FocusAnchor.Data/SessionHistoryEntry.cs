@@ -8,4 +8,5 @@ public sealed record SessionHistoryEntry(
     TimeSpan PlannedDuration,
     TimeSpan FocusedDuration,
     int DistractionCount,
-    string? Reflection);
+    string? Reflection,
+    long? FocusPlanId);
