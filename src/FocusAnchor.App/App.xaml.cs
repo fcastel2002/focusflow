@@ -1,6 +1,8 @@
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using FocusAnchor.Data;
+using FocusAnchor.Data.Google;
 
 namespace FocusAnchor.App;
 
@@ -24,6 +26,10 @@ public partial class App : Application
         ThemeService = new ThemeService(SessionRepository);
         RainAudioService = new RainAudioService(SessionRepository);
         SessionController = new FocusSessionController(SessionRepository);
+        GoogleCalendarConnectionService = new GoogleCalendarConnectionService(
+            new HttpClient(),
+            new WindowsGoogleCredentialStore(),
+            Environment.GetEnvironmentVariable("FOCUSANCHOR_GOOGLE_CLIENT_ID"));
     }
 
     public ISessionHistoryRepository SessionRepository { get; }
@@ -35,6 +41,8 @@ public partial class App : Application
     public ThemeService ThemeService { get; }
 
     public RainAudioService RainAudioService { get; }
+
+    public GoogleCalendarConnectionService GoogleCalendarConnectionService { get; }
 
     protected override void OnStartup(StartupEventArgs e)
     {

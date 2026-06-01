@@ -1,9 +1,11 @@
 using System.ComponentModel;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FocusAnchor.Core;
 using FocusAnchor.Data;
+using FocusAnchor.Data.Google;
 
 namespace FocusAnchor.App;
 
@@ -28,7 +30,41 @@ public partial class MainWindow : Window
         RainVolumeSlider.Value = App.Current.RainAudioService.Volume;
         PlanningCalendar.SelectedDate = DateTime.Today;
         RefreshCalendars();
+        UpdateGoogleConnectionUi();
         UpdateUi();
+    }
+
+    private async void ConnectGoogle_Click(object sender, RoutedEventArgs e)
+    {
+        await TryGoogleActionAsync(async () =>
+        {
+            await App.Current.GoogleCalendarConnectionService.ConnectAsync();
+            UpdateGoogleConnectionUi();
+        });
+    }
+
+    private void LinkGoogleCalendar_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryGetSelectedCalendar(out var calendar)
+            || GoogleCalendarCombo.SelectedItem is not GoogleRemoteCalendar remoteCalendar)
+        {
+            return;
+        }
+
+        App.Current.CalendarRepository.SaveGoogleCalendarLink(
+            new GoogleCalendarLink(calendar.Id, remoteCalendar.Id, remoteCalendar.Name));
+        UpdateGoogleConnectionUi();
+    }
+
+    private void UnlinkGoogleCalendar_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryGetSelectedCalendar(out var calendar))
+        {
+            return;
+        }
+
+        App.Current.CalendarRepository.DeleteGoogleCalendarLink(calendar.Id);
+        UpdateGoogleConnectionUi();
     }
 
     private void ToggleTheme_Click(object sender, RoutedEventArgs e)
@@ -119,6 +155,7 @@ public partial class MainWindow : Window
 
         if (IsInitialized)
         {
+            UpdateGoogleConnectionUi();
             UpdateCalendar();
         }
     }
@@ -448,6 +485,44 @@ public partial class MainWindow : Window
         {
             CalendarErrorText.Text = exception.Message;
         }
+    }
+
+    private void UpdateGoogleConnectionUi()
+    {
+        var service = App.Current.GoogleCalendarConnectionService;
+        GoogleCalendarCombo.ItemsSource = service.RemoteCalendars;
+
+        if (!TryGetSelectedCalendarSilently(out var calendar))
+        {
+            GoogleStatusText.Text = "Elegí un calendario local para configurar el vínculo.";
+            return;
+        }
+
+        var link = App.Current.CalendarRepository.GetGoogleCalendarLink(calendar.Id);
+        GoogleStatusText.Text = link is not null
+            ? $"Vinculado con Google: {link.GoogleCalendarName}"
+            : service.IsConfigured
+                ? "Sin vínculo remoto. Tu calendario local sigue disponible."
+                : "Definí FOCUSANCHOR_GOOGLE_CLIENT_ID para habilitar el vínculo.";
+    }
+
+    private async Task TryGoogleActionAsync(Func<Task> action)
+    {
+        try
+        {
+            CalendarErrorText.Text = string.Empty;
+            await action();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or TaskCanceledException)
+        {
+            CalendarErrorText.Text = exception.Message;
+        }
+    }
+
+    private bool TryGetSelectedCalendarSilently(out FocusCalendar calendar)
+    {
+        calendar = FocusCalendarCombo.SelectedItem as FocusCalendar ?? null!;
+        return calendar is not null;
     }
 
     private void UpdateHistory()

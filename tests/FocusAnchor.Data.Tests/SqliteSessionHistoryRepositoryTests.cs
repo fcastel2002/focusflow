@@ -192,6 +192,23 @@ public sealed class SqliteSessionHistoryRepositoryTests
         Assert.AreEqual(1, summary.DistractionCount);
     }
 
+    [TestMethod]
+    public void SaveGoogleCalendarLink_AndDeleteGoogleCalendarLink_PreserveLocalCalendar()
+    {
+        using var database = new TemporaryDatabase();
+        var repository = new SqliteSessionHistoryRepository(database.Path);
+        var calendar = repository.GetCalendars().Single();
+
+        repository.SaveGoogleCalendarLink(new GoogleCalendarLink(calendar.Id, "remote-id", "Remote calendar"));
+
+        Assert.AreEqual("remote-id", repository.GetGoogleCalendarLink(calendar.Id)?.GoogleCalendarId);
+
+        repository.DeleteGoogleCalendarLink(calendar.Id);
+
+        Assert.IsNull(repository.GetGoogleCalendarLink(calendar.Id));
+        Assert.AreEqual(calendar, repository.GetCalendars().Single());
+    }
+
     private static void SaveReview(
         SqliteSessionHistoryRepository repository,
         string intent,

@@ -547,6 +547,38 @@
                                     Content="Eliminar"
                                     Style="{StaticResource DangerButtonStyle}" />
                         </StackPanel>
+                        <TextBlock Margin="0,20,0,0"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Text="GOOGLE CALENDAR OPCIONAL" />
+                        <TextBlock x:Name="GoogleStatusText"
+                                   Margin="0,7,0,0"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                        <ComboBox x:Name="GoogleCalendarCombo"
+                                  Margin="0,8,0,0"
+                                  DisplayMemberPath="Name" />
+                        <StackPanel Margin="0,9,0,0" Orientation="Horizontal">
+                            <Button x:Name="ConnectGoogleButton"
+                                    Margin="0,0,7,0"
+                                    Padding="10,6"
+                                    Click="ConnectGoogle_Click"
+                                    Content="Vincular Google"
+                                    Style="{StaticResource SecondaryButtonStyle}" />
+                            <Button x:Name="LinkGoogleCalendarButton"
+                                    Margin="0,0,7,0"
+                                    Padding="10,6"
+                                    Click="LinkGoogleCalendar_Click"
+                                    Content="Usar calendario"
+                                    Style="{StaticResource SecondaryButtonStyle}" />
+                            <Button x:Name="UnlinkGoogleCalendarButton"
+                                    Padding="10,6"
+                                    Click="UnlinkGoogleCalendar_Click"
+                                    Content="Desvincular"
+                                    Style="{StaticResource DangerButtonStyle}" />
+                        </StackPanel>
                     </StackPanel>
                     <TextBlock x:Name="CalendarErrorText"
                                Grid.Row="3"

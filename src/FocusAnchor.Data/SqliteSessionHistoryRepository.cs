@@ -374,6 +374,53 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
             reader.GetInt32(3));
     }
 
+    public GoogleCalendarLink? GetGoogleCalendarLink(long calendarId)
+    {
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT google_calendar_id, google_calendar_name
+            FROM calendar_google_links
+            WHERE calendar_id = $calendarId;
+            """;
+        command.Parameters.AddWithValue("$calendarId", calendarId);
+
+        using var reader = command.ExecuteReader();
+        return reader.Read()
+            ? new GoogleCalendarLink(calendarId, reader.GetString(0), reader.GetString(1))
+            : null;
+    }
+
+    public void SaveGoogleCalendarLink(GoogleCalendarLink link)
+    {
+        ArgumentNullException.ThrowIfNull(link);
+
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO calendar_google_links (calendar_id, google_calendar_id, google_calendar_name)
+            VALUES ($calendarId, $googleCalendarId, $googleCalendarName)
+            ON CONFLICT(calendar_id) DO UPDATE SET
+                google_calendar_id = excluded.google_calendar_id,
+                google_calendar_name = excluded.google_calendar_name;
+            """;
+        command.Parameters.AddWithValue("$calendarId", link.CalendarId);
+        command.Parameters.AddWithValue("$googleCalendarId", link.GoogleCalendarId);
+        command.Parameters.AddWithValue("$googleCalendarName", link.GoogleCalendarName);
+        command.ExecuteNonQuery();
+    }
+
+    public void DeleteGoogleCalendarLink(long calendarId)
+    {
+        using var connection = CreateOpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM calendar_google_links WHERE calendar_id = $calendarId;";
+        command.Parameters.AddWithValue("$calendarId", calendarId);
+        command.ExecuteNonQuery();
+    }
+
     private void EnsureSchema()
     {
         using var connection = CreateOpenConnection();
@@ -436,6 +483,12 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
                 intent_description TEXT NOT NULL,
                 starts_at TEXT NOT NULL,
                 duration_seconds INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS calendar_google_links (
+                calendar_id INTEGER PRIMARY KEY REFERENCES focus_calendars(id) ON DELETE CASCADE,
+                google_calendar_id TEXT NOT NULL,
+                google_calendar_name TEXT NOT NULL
             );
 
             INSERT INTO focus_calendars (name, color_hex)

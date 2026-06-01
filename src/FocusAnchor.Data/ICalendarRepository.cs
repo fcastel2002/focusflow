@@ -21,4 +21,10 @@ public interface ICalendarRepository
     void SetDailyGoal(DailyGoal goal);
 
     DailyAttentionSummary GetDailySummary(DateOnly date);
+
+    GoogleCalendarLink? GetGoogleCalendarLink(long calendarId);
+
+    void SaveGoogleCalendarLink(GoogleCalendarLink link);
+
+    void DeleteGoogleCalendarLink(long calendarId);
 }
