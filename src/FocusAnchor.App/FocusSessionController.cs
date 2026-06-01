@@ -42,14 +42,14 @@ public sealed class FocusSessionController
         }
     }
 
-    public void StartSession(string description, TimeSpan duration)
+    public void StartSession(string description, TimeSpan duration, long? focusPlanId = null)
     {
         if (CurrentSession is not null)
         {
             throw new InvalidOperationException("Finish the current session before starting another one.");
         }
 
-        var session = new FocusSession(new FocusIntent(description), duration);
+        var session = new FocusSession(new FocusIntent(description), duration, focusPlanId);
         session.Start(DateTimeOffset.Now);
         CurrentSession = session;
         _timer.Start();

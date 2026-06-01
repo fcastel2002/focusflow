@@ -20,12 +20,15 @@ public partial class App : Application
         }
 
         SessionRepository = new SqliteSessionHistoryRepository(Path.Combine(applicationDataPath, "focus-anchor.db"));
+        CalendarRepository = (ICalendarRepository)SessionRepository;
         ThemeService = new ThemeService(SessionRepository);
         RainAudioService = new RainAudioService(SessionRepository);
         SessionController = new FocusSessionController(SessionRepository);
     }
 
     public ISessionHistoryRepository SessionRepository { get; }
+
+    public ICalendarRepository CalendarRepository { get; }
 
     public FocusSessionController SessionController { get; }
 

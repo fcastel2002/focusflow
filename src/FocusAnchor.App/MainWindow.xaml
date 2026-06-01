@@ -38,7 +38,8 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         Orientation="Horizontal">
-                <RadioButton Content="Foco"
+                <RadioButton x:Name="FocusSectionButton"
+                             Content="Foco"
                              GroupName="HubSection"
                              IsChecked="True"
                              Style="{StaticResource NavigationTabStyle}"
@@ -48,6 +49,12 @@
                              GroupName="HubSection"
                              Style="{StaticResource NavigationTabStyle}"
                              Tag="History"
+                             Checked="HubSection_Checked" />
+                <RadioButton x:Name="CalendarSectionButton"
+                             Content="Calendario"
+                             GroupName="HubSection"
+                             Style="{StaticResource NavigationTabStyle}"
+                             Tag="Calendar"
                              Checked="HubSection_Checked" />
                 <Button x:Name="ThemeButton"
                         Margin="4,0,0,0"
@@ -472,6 +479,181 @@
                     </ListView>
                 </Grid>
             </Border>
+        </Grid>
+
+        <Grid x:Name="CalendarPanel"
+              Grid.Row="1"
+              Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.86*" />
+                <ColumnDefinition Width="1.14*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Margin="0,0,16,0" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Text="Calendario de foco" />
+                    <Calendar x:Name="PlanningCalendar"
+                              Grid.Row="1"
+                              Margin="0,14,0,0"
+                              HorizontalAlignment="Stretch"
+                              SelectedDatesChanged="PlanningCalendar_SelectedDateChanged" />
+                    <StackPanel Grid.Row="2" Margin="0,18,0,0">
+                        <TextBlock FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Text="CALENDARIO LOCAL" />
+                        <ComboBox x:Name="FocusCalendarCombo"
+                                  Margin="0,8,0,0"
+                                  DisplayMemberPath="Name"
+                                  SelectionChanged="FocusCalendarCombo_SelectionChanged" />
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="92" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="CalendarNameTextBox"
+                                     Style="{StaticResource InputStyle}" />
+                            <TextBox x:Name="CalendarColorTextBox"
+                                     Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Style="{StaticResource InputStyle}"
+                                     Text="#295C4D" />
+                        </Grid>
+                        <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                            <Button x:Name="NewCalendarButton"
+                                    Margin="0,0,8,0"
+                                    Padding="11,7"
+                                    Click="NewCalendar_Click"
+                                    Content="Nuevo"
+                                    Style="{StaticResource SecondaryButtonStyle}" />
+                            <Button x:Name="SaveCalendarButton"
+                                    Margin="0,0,8,0"
+                                    Padding="11,7"
+                                    Click="SaveCalendar_Click"
+                                    Content="Guardar"
+                                    Style="{StaticResource PrimaryButtonStyle}" />
+                            <Button x:Name="DeleteCalendarButton"
+                                    Padding="11,7"
+                                    Click="DeleteCalendar_Click"
+                                    Content="Eliminar"
+                                    Style="{StaticResource DangerButtonStyle}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock x:Name="CalendarErrorText"
+                               Grid.Row="3"
+                               Margin="0,12,0,0"
+                               Foreground="{DynamicResource DangerBrush}"
+                               TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock x:Name="SelectedDateText"
+                               FontSize="28"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock x:Name="DailySummaryText"
+                               Margin="0,7,0,0"
+                               FontSize="14"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextWrapping="Wrap" />
+
+                    <Border Margin="0,16,0,0" Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Text="Meta breve del día" />
+                            <TextBox x:Name="DailyGoalTextBox"
+                                     Margin="0,10,0,0"
+                                     Style="{StaticResource InputStyle}" />
+                            <Button x:Name="SaveDailyGoalButton"
+                                    Margin="0,10,0,0"
+                                    HorizontalAlignment="Left"
+                                    Padding="11,7"
+                                    Click="SaveDailyGoal_Click"
+                                    Content="Guardar meta diaria"
+                                    Style="{StaticResource PrimaryButtonStyle}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Margin="0,16,0,0" Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Text="Bloques planeados" />
+                            <ListBox x:Name="PlanList"
+                                     Height="112"
+                                     Margin="0,10,0,0"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     SelectionChanged="PlanList_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   Text="{Binding DisplayText}" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="78" />
+                                    <ColumnDefinition Width="78" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="PlanIntentTextBox"
+                                         Style="{StaticResource InputStyle}" />
+                                <TextBox x:Name="PlanTimeTextBox"
+                                         Grid.Column="1"
+                                         Margin="8,0,0,0"
+                                         Style="{StaticResource InputStyle}"
+                                         Text="09:00" />
+                                <TextBox x:Name="PlanDurationTextBox"
+                                         Grid.Column="2"
+                                         Margin="8,0,0,0"
+                                         Style="{StaticResource InputStyle}"
+                                         Text="25" />
+                            </Grid>
+                            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                <Button x:Name="NewPlanButton"
+                                        Margin="0,0,8,0"
+                                        Padding="11,7"
+                                        Click="NewPlan_Click"
+                                        Content="Nuevo"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
+                                <Button x:Name="SavePlanButton"
+                                        Margin="0,0,8,0"
+                                        Padding="11,7"
+                                        Click="SavePlan_Click"
+                                        Content="Guardar bloque"
+                                        Style="{StaticResource PrimaryButtonStyle}" />
+                                <Button x:Name="StartPlanButton"
+                                        Margin="0,0,8,0"
+                                        Padding="11,7"
+                                        Click="StartPlan_Click"
+                                        Content="Empezar ahora"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
+                                <Button x:Name="DeletePlanButton"
+                                        Padding="11,7"
+                                        Click="DeletePlan_Click"
+                                        Content="Eliminar"
+                                        Style="{StaticResource DangerButtonStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
 
         <TextBlock Grid.Row="2"

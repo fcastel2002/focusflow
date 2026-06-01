@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FocusAnchor.Core;
+using FocusAnchor.Data;
 
 namespace FocusAnchor.App;
 
@@ -12,6 +13,9 @@ public partial class MainWindow : Window
     private FloatingTimerWindow? _floatingWindow;
     private int _selectedDurationMinutes = 25;
     private bool _showingHistory;
+    private bool _showingCalendar;
+    private long _editingCalendarId;
+    private long _editingPlanId;
 
     public MainWindow()
     {
@@ -22,6 +26,8 @@ public partial class MainWindow : Window
         App.Current.ThemeService.ThemeChanged += ThemeService_ThemeChanged;
         App.Current.RainAudioService.StateChanged += RainAudioService_StateChanged;
         RainVolumeSlider.Value = App.Current.RainAudioService.Volume;
+        PlanningCalendar.SelectedDate = DateTime.Today;
+        RefreshCalendars();
         UpdateUi();
     }
 
@@ -79,13 +85,151 @@ public partial class MainWindow : Window
         }
 
         _showingHistory = section is "History";
+        _showingCalendar = section is "Calendar";
 
         if (_showingHistory)
         {
             UpdateHistory();
         }
 
+        if (_showingCalendar)
+        {
+            UpdateCalendar();
+        }
+
         UpdateUi();
+    }
+
+    private void PlanningCalendar_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IsInitialized)
+        {
+            UpdateCalendar();
+        }
+    }
+
+    private void FocusCalendarCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (FocusCalendarCombo.SelectedItem is FocusCalendar calendar)
+        {
+            _editingCalendarId = calendar.Id;
+            CalendarNameTextBox.Text = calendar.Name;
+            CalendarColorTextBox.Text = calendar.ColorHex;
+        }
+
+        if (IsInitialized)
+        {
+            UpdateCalendar();
+        }
+    }
+
+    private void NewCalendar_Click(object sender, RoutedEventArgs e)
+    {
+        _editingCalendarId = 0;
+        FocusCalendarCombo.SelectedItem = null;
+        CalendarNameTextBox.Clear();
+        CalendarColorTextBox.Text = "#295C4D";
+    }
+
+    private void SaveCalendar_Click(object sender, RoutedEventArgs e)
+    {
+        TryCalendarAction(() =>
+        {
+            var saved = App.Current.CalendarRepository.SaveCalendar(
+                new FocusCalendar(_editingCalendarId, CalendarNameTextBox.Text, CalendarColorTextBox.Text));
+            RefreshCalendars(saved.Id);
+        });
+    }
+
+    private void DeleteCalendar_Click(object sender, RoutedEventArgs e)
+    {
+        if (_editingCalendarId == 0)
+        {
+            return;
+        }
+
+        App.Current.CalendarRepository.DeleteCalendar(_editingCalendarId);
+        _editingCalendarId = 0;
+        RefreshCalendars();
+    }
+
+    private void SaveDailyGoal_Click(object sender, RoutedEventArgs e)
+    {
+        if (TryGetSelectedCalendar(out var calendar))
+        {
+            App.Current.CalendarRepository.SetDailyGoal(
+                new DailyGoal(calendar.Id, GetSelectedDate(), DailyGoalTextBox.Text));
+            UpdateCalendar();
+        }
+    }
+
+    private void PlanList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PlanList.SelectedItem is not PlanListItem item)
+        {
+            return;
+        }
+
+        _editingPlanId = item.Plan.Id;
+        PlanIntentTextBox.Text = item.Plan.IntentDescription;
+        PlanTimeTextBox.Text = item.Plan.StartsAt.ToLocalTime().ToString("HH:mm");
+        PlanDurationTextBox.Text = ((int)item.Plan.Duration.TotalMinutes).ToString();
+    }
+
+    private void NewPlan_Click(object sender, RoutedEventArgs e)
+    {
+        _editingPlanId = 0;
+        PlanList.SelectedItem = null;
+        PlanIntentTextBox.Clear();
+        PlanTimeTextBox.Text = "09:00";
+        PlanDurationTextBox.Text = "25";
+    }
+
+    private void SavePlan_Click(object sender, RoutedEventArgs e)
+    {
+        TryCalendarAction(() =>
+        {
+            if (!TryGetSelectedCalendar(out var calendar))
+            {
+                return;
+            }
+
+            var startsAt = ParsePlanStartsAt();
+            var duration = ParsePlanDuration();
+            App.Current.CalendarRepository.SavePlan(
+                new FocusPlan(_editingPlanId, calendar.Id, PlanIntentTextBox.Text, startsAt, duration));
+            NewPlan_Click(this, new RoutedEventArgs());
+            UpdateCalendar();
+        });
+    }
+
+    private void DeletePlan_Click(object sender, RoutedEventArgs e)
+    {
+        if (_editingPlanId == 0)
+        {
+            return;
+        }
+
+        App.Current.CalendarRepository.DeletePlan(_editingPlanId);
+        NewPlan_Click(this, new RoutedEventArgs());
+        UpdateCalendar();
+    }
+
+    private void StartPlan_Click(object sender, RoutedEventArgs e)
+    {
+        if (PlanList.SelectedItem is not PlanListItem item)
+        {
+            return;
+        }
+
+        TryCalendarAction(() =>
+        {
+            _controller.StartSession(item.Plan.IntentDescription, item.Plan.Duration, item.Plan.Id);
+            FocusSectionButton.IsChecked = true;
+            _showingCalendar = false;
+            _showingHistory = false;
+            UpdateUi();
+        });
     }
 
     private void StartSession_Click(object sender, RoutedEventArgs e)
@@ -168,11 +312,12 @@ public partial class MainWindow : Window
         var session = _controller.CurrentSession;
 
         HistoryPanel.Visibility = _showingHistory ? Visibility.Visible : Visibility.Collapsed;
-        StartPanel.Visibility = !_showingHistory && session is null ? Visibility.Visible : Visibility.Collapsed;
-        SessionPanel.Visibility = !_showingHistory && session is { Status: FocusSessionStatus.Active or FocusSessionStatus.Paused }
+        CalendarPanel.Visibility = _showingCalendar ? Visibility.Visible : Visibility.Collapsed;
+        StartPanel.Visibility = !_showingHistory && !_showingCalendar && session is null ? Visibility.Visible : Visibility.Collapsed;
+        SessionPanel.Visibility = !_showingHistory && !_showingCalendar && session is { Status: FocusSessionStatus.Active or FocusSessionStatus.Paused }
             ? Visibility.Visible
             : Visibility.Collapsed;
-        ReviewPanel.Visibility = !_showingHistory && session is { Status: FocusSessionStatus.Completed }
+        ReviewPanel.Visibility = !_showingHistory && !_showingCalendar && session is { Status: FocusSessionStatus.Completed }
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -222,6 +367,89 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RefreshCalendars(long? selectedCalendarId = null)
+    {
+        var calendars = App.Current.CalendarRepository.GetCalendars();
+        FocusCalendarCombo.ItemsSource = calendars;
+        FocusCalendarCombo.SelectedItem = calendars.FirstOrDefault(calendar => calendar.Id == selectedCalendarId)
+            ?? calendars.FirstOrDefault();
+    }
+
+    private void UpdateCalendar()
+    {
+        var date = GetSelectedDate();
+        SelectedDateText.Text = date.ToString("dddd d 'de' MMMM");
+        var summary = App.Current.CalendarRepository.GetDailySummary(date);
+        DailySummaryText.Text =
+            $"{summary.PlannedBlockCount} bloques planeados · {summary.ReviewedSessionCount} revisados · " +
+            $"{FormatFocusedDuration(summary.FocusedDuration)} enfocados · {summary.DistractionCount} distracciones";
+
+        if (!TryGetSelectedCalendar(out var calendar))
+        {
+            DailyGoalTextBox.Clear();
+            PlanList.ItemsSource = Array.Empty<PlanListItem>();
+            return;
+        }
+
+        DailyGoalTextBox.Text = App.Current.CalendarRepository.GetDailyGoal(calendar.Id, date)?.Description ?? string.Empty;
+        PlanList.ItemsSource = App.Current.CalendarRepository.GetPlans(date)
+            .Where(plan => plan.CalendarId == calendar.Id)
+            .Select(plan => new PlanListItem(plan, $"{plan.StartsAt.ToLocalTime():HH:mm} · {plan.IntentDescription} · {(int)plan.Duration.TotalMinutes} min"))
+            .ToArray();
+    }
+
+    private bool TryGetSelectedCalendar(out FocusCalendar calendar)
+    {
+        calendar = FocusCalendarCombo.SelectedItem as FocusCalendar ?? null!;
+
+        if (calendar is not null)
+        {
+            return true;
+        }
+
+        CalendarErrorText.Text = "Creá o elegí un calendario local.";
+        return false;
+    }
+
+    private DateOnly GetSelectedDate()
+    {
+        return DateOnly.FromDateTime(PlanningCalendar.SelectedDate ?? DateTime.Today);
+    }
+
+    private DateTimeOffset ParsePlanStartsAt()
+    {
+        if (!TimeOnly.TryParse(PlanTimeTextBox.Text, out var time))
+        {
+            throw new ArgumentException("La hora debe usar formato HH:mm.");
+        }
+
+        var localStart = GetSelectedDate().ToDateTime(time);
+        return new DateTimeOffset(localStart, TimeZoneInfo.Local.GetUtcOffset(localStart));
+    }
+
+    private TimeSpan ParsePlanDuration()
+    {
+        if (!int.TryParse(PlanDurationTextBox.Text, out var minutes) || minutes <= 0)
+        {
+            throw new ArgumentException("La duración debe expresarse en minutos positivos.");
+        }
+
+        return TimeSpan.FromMinutes(minutes);
+    }
+
+    private void TryCalendarAction(Action action)
+    {
+        try
+        {
+            CalendarErrorText.Text = string.Empty;
+            action();
+        }
+        catch (ArgumentException exception)
+        {
+            CalendarErrorText.Text = exception.Message;
+        }
+    }
+
     private void UpdateHistory()
     {
         var summary = _controller.GetAttentionSummary();
@@ -261,4 +489,6 @@ public partial class MainWindow : Window
         string Details,
         string Reflection,
         string EndedAt);
+
+    private sealed record PlanListItem(FocusPlan Plan, string DisplayText);
 }
