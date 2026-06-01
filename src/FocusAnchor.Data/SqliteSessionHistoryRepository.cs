@@ -605,8 +605,6 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
             INSERT INTO focus_calendars (name, color_hex)
             SELECT 'Personal', '#295C4D'
             WHERE NOT EXISTS (SELECT 1 FROM focus_calendars);
-
-            PRAGMA user_version = 2;
             """;
         command.ExecuteNonQuery();
 
@@ -616,6 +614,10 @@ public sealed class SqliteSessionHistoryRepository : ISessionHistoryRepository, 
         EnsureColumn(connection, "focus_plans", "last_synced_at", "TEXT NULL");
         EnsureColumn(connection, "focus_plans", "local_updated_at", "TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.0000000+00:00'");
         EnsureColumn(connection, "focus_plans", "is_deleted", "INTEGER NOT NULL DEFAULT 0");
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version = 4;";
+        versionCommand.ExecuteNonQuery();
     }
 
     private static bool ColumnExists(SqliteConnection connection, string tableName, string columnName)

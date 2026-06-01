@@ -121,6 +121,11 @@ public sealed class SqliteSessionHistoryRepositoryTests
         var repository = new SqliteSessionHistoryRepository(database.Path);
 
         Assert.AreEqual("Personal", repository.GetCalendars().Single().Name);
+        using var migratedConnection = new SqliteConnection($"Data Source={database.Path};Pooling=False");
+        migratedConnection.Open();
+        using var versionCommand = migratedConnection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version;";
+        Assert.AreEqual(4L, versionCommand.ExecuteScalar());
     }
 
     [TestMethod]
