@@ -5,6 +5,12 @@
     <ProjectReference Include="..\FocusAnchor.Data\FocusAnchor.Data.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Assets\Audio\rain-base.mp3">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>

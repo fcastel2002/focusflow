@@ -16,6 +16,7 @@ public partial class FloatingTimerWindow : Window
         _controller = controller;
         _hubWindow = hubWindow;
         _controller.StateChanged += Controller_StateChanged;
+        App.Current.RainAudioService.StateChanged += RainAudioService_StateChanged;
         UpdateUi();
     }
 
@@ -44,6 +45,18 @@ public partial class FloatingTimerWindow : Window
         _controller.EndSession();
     }
 
+    private void ToggleRain_Click(object sender, RoutedEventArgs e)
+    {
+        App.Current.RainAudioService.TogglePlayback();
+    }
+
+    private void RainAudioService_StateChanged(object? sender, EventArgs e)
+    {
+        FloatingRainButton.Content = App.Current.RainAudioService.IsPlaying
+            ? "Lluvia: pausar"
+            : "Lluvia: reproducir";
+    }
+
     private void OpenHub_Click(object sender, RoutedEventArgs e)
     {
         Hide();
@@ -62,6 +75,7 @@ public partial class FloatingTimerWindow : Window
     private void Window_Closed(object? sender, EventArgs e)
     {
         _controller.StateChanged -= Controller_StateChanged;
+        App.Current.RainAudioService.StateChanged -= RainAudioService_StateChanged;
     }
 
     private void UpdateUi()
@@ -77,6 +91,7 @@ public partial class FloatingTimerWindow : Window
         FloatingIntentText.Text = session.Intent.Description;
         FloatingTimeText.Text = FocusSessionController.FormatRemainingTime(_controller.RemainingTime);
         FloatingProgressBar.Value = _controller.ProgressPercentage;
+        RainAudioService_StateChanged(this, EventArgs.Empty);
 
         switch (session.Status)
         {

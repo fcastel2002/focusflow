@@ -20,6 +20,8 @@ public partial class MainWindow : Window
         _controller = App.Current.SessionController;
         _controller.StateChanged += Controller_StateChanged;
         App.Current.ThemeService.ThemeChanged += ThemeService_ThemeChanged;
+        App.Current.RainAudioService.StateChanged += RainAudioService_StateChanged;
+        RainVolumeSlider.Value = App.Current.RainAudioService.Volume;
         UpdateUi();
     }
 
@@ -33,6 +35,26 @@ public partial class MainWindow : Window
         ThemeButton.Content = App.Current.ThemeService.IsDarkTheme
             ? "Tema claro"
             : "Tema oscuro";
+    }
+
+    private void ToggleRain_Click(object sender, RoutedEventArgs e)
+    {
+        App.Current.RainAudioService.TogglePlayback();
+    }
+
+    private void RainVolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (IsInitialized)
+        {
+            App.Current.RainAudioService.SetVolume(e.NewValue);
+        }
+    }
+
+    private void RainAudioService_StateChanged(object? sender, EventArgs e)
+    {
+        RainButton.Content = App.Current.RainAudioService.IsPlaying
+            ? "Lluvia: pausar"
+            : "Lluvia: reproducir";
     }
 
     private void DurationOption_Checked(object sender, RoutedEventArgs e)
@@ -142,6 +164,7 @@ public partial class MainWindow : Window
     private void UpdateUi()
     {
         ThemeService_ThemeChanged(this, EventArgs.Empty);
+        RainAudioService_StateChanged(this, EventArgs.Empty);
         var session = _controller.CurrentSession;
 
         HistoryPanel.Visibility = _showingHistory ? Visibility.Visible : Visibility.Collapsed;

@@ -21,6 +21,7 @@ public partial class App : Application
 
         SessionRepository = new SqliteSessionHistoryRepository(Path.Combine(applicationDataPath, "focus-anchor.db"));
         ThemeService = new ThemeService(SessionRepository);
+        RainAudioService = new RainAudioService(SessionRepository);
         SessionController = new FocusSessionController(SessionRepository);
     }
 
@@ -30,9 +31,17 @@ public partial class App : Application
 
     public ThemeService ThemeService { get; }
 
+    public RainAudioService RainAudioService { get; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         ThemeService.ApplySavedTheme();
         base.OnStartup(e);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        RainAudioService.Dispose();
+        base.OnExit(e);
     }
 }
